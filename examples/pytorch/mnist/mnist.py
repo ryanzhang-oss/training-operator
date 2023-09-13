@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import argparse
+import logging
 import os
 
 from tensorboardX import SummaryWriter
@@ -13,13 +14,12 @@ import torch.optim as optim
 
 WORLD_SIZE = int(os.environ.get('WORLD_SIZE', 1))
 
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 20, 5, 1)
         self.conv2 = nn.Conv2d(20, 50, 5, 1)
-        self.fc1 = nn.Linear(4*4*50, 500)
+        self.fc1 = nn.Linear(4 * 4 * 50, 500)
         self.fc2 = nn.Linear(500, 10)
 
     def forward(self, x):
@@ -27,11 +27,12 @@ class Net(nn.Module):
         x = F.max_pool2d(x, 2, 2)
         x = F.relu(self.conv2(x))
         x = F.max_pool2d(x, 2, 2)
-        x = x.view(-1, 4*4*50)
+        x = x.view(-1, 4 * 4 * 50)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
-    
+
+
 def train(args, model, device, train_loader, optimizer, epoch, writer):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -44,9 +45,10 @@ def train(args, model, device, train_loader, optimizer, epoch, writer):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tloss={:.4f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
+                       100. * batch_idx / len(train_loader), loss.item()))
             niter = epoch * len(train_loader) + batch_idx
             writer.add_scalar('loss', loss.item(), niter)
+
 
 def test(args, model, device, test_loader, writer, epoch):
     model.eval()
@@ -56,8 +58,8 @@ def test(args, model, device, test_loader, writer, epoch):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
-            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+            test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
+            pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
@@ -97,6 +99,7 @@ def main():
     parser.add_argument('--dir', default='logs', metavar='L',
                         help='directory where summary logs are stored')
     if dist.is_available():
+        print('pytorch distributed is available')
         parser.add_argument('--backend', type=str, help='Distributed backend',
                             choices=[dist.Backend.GLOO, dist.Backend.NCCL, dist.Backend.MPI],
                             default=dist.Backend.GLOO)
@@ -105,6 +108,7 @@ def main():
     if use_cuda:
         print('Using CUDA')
 
+    print('Epochs = {}'.format(args.epochs))
     writer = SummaryWriter(args.dir)
 
     torch.manual_seed(args.seed)
@@ -113,21 +117,22 @@ def main():
 
     if should_distribute():
         print('Using distributed PyTorch with {} backend'.format(args.backend))
-        dist.init_process_group(backend=args.backend)
+        print('WORLD_SIZE: {}'.format(WORLD_SIZE))
+        dist.init_process_group(backend=args.backend, world_size=WORLD_SIZE)
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
     train_loader = torch.utils.data.DataLoader(
         datasets.FashionMNIST('../data', train=True, download=True,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
+                              transform=transforms.Compose([
+                                  transforms.ToTensor(),
+                                  transforms.Normalize((0.1307,), (0.3081,))
+                              ])),
         batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
         datasets.FashionMNIST('../data', train=False, transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])),
         batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
     model = Net().to(device)
@@ -144,7 +149,8 @@ def main():
         test(args, model, device, test_loader, writer, epoch)
 
     if (args.save_model):
-        torch.save(model.state_dict(),"mnist_cnn.pt")
-        
+        torch.save(model.state_dict(), "mnist_cnn.pt")
+
+
 if __name__ == '__main__':
     main()
