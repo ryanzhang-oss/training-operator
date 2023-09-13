@@ -14,14 +14,19 @@ spec:
         spec:
           containers:
             - name: pytorch
-              image: gcr.io/<your_project>/pytorch_dist_mnist:latest
-              args: ["--backend", "gloo"]
+              image: nerdyyatrice/pytorch-dist-mnist-test:1.0
+              args: ["--backend", "nccl","--epochs", "100", "--lr", "0.001","--seed", "12","--save-model"]
               # Comment out the below resources to use the CPU.
               resources: 
                 limits:
                   nvidia.com/gpu: 1
+          tolerations:
+            - key: "sku"
+              operator: "Equal"
+              value: "gpu"
+              effect: "NoSchedule"
     Worker:
-      replicas: 1
+      replicas: 5
       restartPolicy: OnFailure
       template:
         metadata:
@@ -30,9 +35,14 @@ spec:
         spec:
           containers: 
             - name: pytorch
-              image: gcr.io/<your_project>/pytorch_dist_mnist:latest
-              args: ["--backend", "gloo"]
+              image: nerdyyatrice/pytorch-dist-mnist-test:1.0
+              args: ["--backend", "nccl","--epochs", "100", "--lr", "0.001","--seed", "12"]
               # Comment out the below resources to use the CPU.
               resources: 
                 limits:
                   nvidia.com/gpu: 1
+          tolerations:
+            - key: "sku"
+              operator: "Equal"
+              value: "gpu"
+              effect: "NoSchedule"

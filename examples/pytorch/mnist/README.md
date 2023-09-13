@@ -14,9 +14,9 @@ Each folder contains manifests with example usage of the different backends.
 The default image name and tag is `kubeflow/pytorch-dist-mnist-test:1.0`.
 
 ```shell
-docker build -f Dockerfile -t kubeflow/pytorch-dist-mnist-test:1.0 ./
+docker build -f Dockerfile -t <your_project>/pytorch-dist-mnist-test:1.0 ./
 ```
-NOTE: If you you are working on Power System, Dockerfile.ppc64le could be used.
+NOTE: If you are working on Power System, Dockerfile.ppc64le could be used.
 
 **Create the mnist PyTorch job**
 
